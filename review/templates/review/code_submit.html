@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Review</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h2, h3 {
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.1);
+            width: 60%;
+            margin: auto;
+        }
+        .file-list, .code-input {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f9f9f9;
+            border-radius: 5px;
+        }
+        .suggestions {
+            margin-top: 10px;
+            padding: 10px;
+            background: #e8f0fe;
+            border-radius: 5px;
+        }
+        .suggestion-block {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .code-section {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;  /* ✅ PRESERVES NEWLINES */
+            overflow-x: auto;  /* ✅ ENABLES SCROLLING FOR LONG LINES */
+        }
+        .separator {
+            margin: 15px 0;
+            border: 1px solid #ddd;
+        }
+        .analysis-section {
+            font-size: 14px;
+            color: #333;
+            padding-top: 10px;
+        }
+        .dark-mode {
+            background-color: #333;
+            color: white;
+        }
+        .dark-mode .container {
+            background-color: #222;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Submit Code for AI Review</h2>
+
+        <label for="language-select">Select Language:</label>
+        <select id="language-select">
+            <option value="python">Python</option>
+            <option value="javascript">JavaScript</option>
+            <option value="java">Java</option>
+            <option value="cpp">C++</option>
+        </select>
+
+        <br><br>
+
+        <h3>Select Input Method:</h3>
+        <label><input type="radio" name="input-method" value="file" checked> Upload Files</label>
+        <label><input type="radio" name="input-method" value="text"> Paste Code</label>
+
+        <div id="file-upload-section">
+            <label for="file-input">Upload Code Files:</label>
+            <input type="file" id="file-input" multiple accept=".py,.js,.java,.cpp">
+            <div id="file-list" class="file-list">No files uploaded.</div>
+        </div>
+
+        <div id="text-input-section" style="display: none;">
+            <label for="code-textarea">Paste Your Code:</label>
+            <textarea id="code-textarea" rows="30" style="width: 100%;height: 100%; font-family: monospace; resize: vertical;"></textarea>
+
+        </div>
+
+        <br>
+        <button id="submit-btn">Submit</button>
+
+        <h3>AI Suggestions:</h3>
+        <div id="ai-suggestions" class="suggestions">Waiting for input...</div>
+
+        <button id="toggle-theme">Toggle Dark Mode</button>
+    </div>
+
+    <script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const fileInput = document.getElementById("file-input");
+        const fileList = document.getElementById("file-list");
+        const aiSuggestions = document.getElementById("ai-suggestions");
+        const languageSelect = document.getElementById("language-select");
+        const submitBtn = document.getElementById("submit-btn");
+        const toggleThemeBtn = document.getElementById("toggle-theme");
+        const inputMethods = document.getElementsByName("input-method");
+        const fileUploadSection = document.getElementById("file-upload-section");
+        const textInputSection = document.getElementById("text-input-section");
+        const codeTextarea = document.getElementById("code-textarea");
+
+        let uploadedFiles = [];
+
+        // Toggle input sections based on selection
+        inputMethods.forEach(input => {
+            input.addEventListener("change", function () {
+                if (this.value === "file") {
+                    fileUploadSection.style.display = "block";
+                    textInputSection.style.display = "none";
+                } else {
+                    fileUploadSection.style.display = "none";
+                    textInputSection.style.display = "block";
+                }
+            });
+        });
+
+        // Dark mode toggle
+        toggleThemeBtn.addEventListener("click", function () {
+            document.body.classList.toggle("dark-mode");
+        });
+
+        // Handle file selection
+        fileInput.addEventListener("change", function () {
+            uploadedFiles = [];
+            fileList.innerHTML = "";
+
+            if (fileInput.files.length === 0) {
+                fileList.innerHTML = "No files uploaded.";
+                return;
+            }
+
+            Array.from(fileInput.files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = function (event) {
+                    uploadedFiles.push({ name: file.name, content: event.target.result });
+
+                    const fileItem = document.createElement("p");
+                    fileItem.textContent = file.name;
+                    fileList.appendChild(fileItem);
+                };
+                reader.readAsText(file);
+            });
+        });
+
+        function getCSRFToken() {
+            return document.cookie.split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+        }
+
+        submitBtn.addEventListener("click", function (event) {
+    event.preventDefault();
+
+    let requestPayload = { language: languageSelect.value };
+    const selectedMethod = document.querySelector('input[name="input-method"]:checked')?.value;
+
+    if (!selectedMethod) {
+        aiSuggestions.innerText = "Please select an input method.";
+        return;
+    }
+
+    if (selectedMethod === "file") {
+        if (uploadedFiles.length === 0) {
+            aiSuggestions.innerText = "Please upload at least one file.";
+            return;
+        }
+        requestPayload.files = uploadedFiles;
+    } 
+
+    if (selectedMethod === "text") {  
+        const pastedCode = codeTextarea.value.trim();
+        if (!pastedCode) {
+            aiSuggestions.innerText = "Please paste some code.";
+            return;
+        }
+        requestPayload.pasted_code = pastedCode;
+    }
+
+    // Debugging: Check if pasted_code is being added
+    console.log("🚀 Sending Request Payload:", JSON.stringify(requestPayload, null, 2));
+
+    fetch("/live_review/", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+        "X-CSRFToken": getCSRFToken()
+    },
+    body: JSON.stringify(requestPayload)
+})
+.then(response => response.json())
+.then(data => {
+    console.log("✅ Response from Server:", data);
+
+    if (data.error) {
+        aiSuggestions.innerHTML = `<p style="color: red;">🚨 ${data.error}</p>`;
+        return;
+    }
+
+    aiSuggestions.innerHTML = ""; // Clear previous content
+
+    data.suggestions.forEach(suggestion => {
+        const suggestionBlock = document.createElement("div");
+        suggestionBlock.classList.add("suggestion-block");
+
+        suggestionBlock.innerHTML = `
+            <h4>📄 File: ${suggestion.file}</h4>
+            <pre class="code-section">${suggestion.feedback}</pre>
+        `;
+
+        aiSuggestions.appendChild(suggestionBlock);
+    });
+})
+.catch(error => {
+    console.error("❌ Error:", error);
+    aiSuggestions.innerHTML = `<p style="color: red;">❌ Something went wrong. Please try again.</p>`;
+});
+
+});
+
+
+        });
+    
+    </script>
+
+</body>
+</html>
