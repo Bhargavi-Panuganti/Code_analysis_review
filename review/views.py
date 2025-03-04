@@ -4,7 +4,7 @@ import json
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 
-# HUGGING_FACE_API_KEY = ".."
+# 
 
 def home(request):
     return render(request, "review/code_submit.html")
