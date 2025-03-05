@@ -1,3 +1,5 @@
+<!-- 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -246,3 +248,251 @@
 
 </body>
 </html>
+-->
+
+
+
+{% extends 'base.html' %}
+{% block content %}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Code Review</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <style>
+        body {
+            background-color: #f8f9fa;
+        }
+
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.1);
+            max-width: 800px;
+            margin: 40px auto;
+        }
+
+        .btn-primary {
+            background-color: #007bff;
+            border: none;
+        }
+
+        .btn-primary:hover {
+            background-color: #0056b3;
+        }
+
+        .code-section {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 5px;
+            font-family: monospace;
+            white-space: pre-wrap;
+            overflow-x: auto;
+        }
+
+        .suggestion-block {
+            padding: 15px;
+            border-radius: 8px;
+            background-color: #f1f1f1;
+            margin-top: 10px;
+        }
+
+        .dark-mode {
+            background-color: #343a40;
+            color: white;
+        }
+
+        .dark-mode .container {
+            background-color: #454d55;
+            color: white;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2 class="text-center">Submit Code for AI Review</h2>
+
+        <div class="form-group">
+            <label for="language-select">Select Language:</label>
+            <select id="language-select" class="form-control">
+                <option value="python">Python</option>
+                <option value="javascript">JavaScript</option>
+                <option value="java">Java</option>
+                <option value="cpp">C++</option>
+            </select>
+        </div>
+
+        <h4>Select Input Method:</h4>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="input-method" value="file" id="uploadFile" checked>
+            <label class="form-check-label" for="uploadFile">Upload Files</label>
+        </div>
+        <div class="form-check">
+            <input class="form-check-input" type="radio" name="input-method" value="text" id="pasteCode">
+            <label class="form-check-label" for="pasteCode">Paste Code</label>
+        </div>
+
+        <div id="file-upload-section" class="mt-3">
+            <label for="file-input">Upload Code Files:</label>
+            <input type="file" id="file-input" multiple accept=".py,.js,.java,.cpp" class="form-control">
+            <div id="file-list" class="mt-2 text-muted">No files uploaded.</div>
+        </div>
+
+        <div id="text-input-section" class="mt-3" style="display: none;">
+            <label for="code-textarea">Paste Your Code:</label>
+            <textarea id="code-textarea" class="form-control" rows="8"></textarea>
+        </div>
+
+        <div class="text-center mt-4">
+            <button id="submit-btn" class="btn btn-primary">Submit</button>
+        </div>
+
+        <h3 class="mt-4">AI Suggestions:</h3>
+        <div id="ai-suggestions" class="suggestions p-3 border rounded">Waiting for input...</div>
+
+        <div class="text-center mt-4">
+            <button id="toggle-theme" class="btn btn-secondary">Toggle Dark Mode</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const fileInput = document.getElementById("file-input");
+            const fileList = document.getElementById("file-list");
+            const aiSuggestions = document.getElementById("ai-suggestions");
+            const languageSelect = document.getElementById("language-select");
+            const submitBtn = document.getElementById("submit-btn");
+            const toggleThemeBtn = document.getElementById("toggle-theme");
+            const inputMethods = document.getElementsByName("input-method");
+            const fileUploadSection = document.getElementById("file-upload-section");
+            const textInputSection = document.getElementById("text-input-section");
+            const codeTextarea = document.getElementById("code-textarea");
+
+            let uploadedFiles = [];
+
+            // Toggle input sections based on selection
+            inputMethods.forEach(input => {
+                input.addEventListener("change", function () {
+                    if (this.value === "file") {
+                        fileUploadSection.style.display = "block";
+                        textInputSection.style.display = "none";
+                    } else {
+                        fileUploadSection.style.display = "none";
+                        textInputSection.style.display = "block";
+                    }
+                });
+            });
+
+            // Dark mode toggle
+            toggleThemeBtn.addEventListener("click", function () {
+                document.body.classList.toggle("dark-mode");
+            });
+
+            // Handle file selection
+            fileInput.addEventListener("change", function () {
+                uploadedFiles = [];
+                fileList.innerHTML = "";
+
+                if (fileInput.files.length === 0) {
+                    fileList.innerHTML = "No files uploaded.";
+                    return;
+                }
+
+                Array.from(fileInput.files).forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = function (event) {
+                        uploadedFiles.push({ name: file.name, content: event.target.result });
+
+                        const fileItem = document.createElement("p");
+                        fileItem.textContent = file.name;
+                        fileList.appendChild(fileItem);
+                    };
+                    reader.readAsText(file);
+                });
+            });
+
+            function getCSRFToken() {
+                return document.cookie.split('; ')
+                    .find(row => row.startsWith('csrftoken='))
+                    ?.split('=')[1];
+            }
+
+            submitBtn.addEventListener("click", function (event) {
+                event.preventDefault();
+
+                let requestPayload = { language: languageSelect.value };
+                const selectedMethod = document.querySelector('input[name="input-method"]:checked')?.value;
+
+                if (!selectedMethod) {
+                    aiSuggestions.innerText = "Please select an input method.";
+                    return;
+                }
+
+                if (selectedMethod === "file") {
+                    if (uploadedFiles.length === 0) {
+                        aiSuggestions.innerText = "Please upload at least one file.";
+                        return;
+                    }
+                    requestPayload.files = uploadedFiles;
+                } 
+
+                if (selectedMethod === "text") {  
+                    const pastedCode = codeTextarea.value.trim();
+                    if (!pastedCode) {
+                        aiSuggestions.innerText = "Please paste some code.";
+                        return;
+                    }
+                    requestPayload.pasted_code = pastedCode;
+                }
+
+                console.log("🚀 Sending Request Payload:", JSON.stringify(requestPayload, null, 2));
+
+                fetch("/live_review/", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "X-CSRFToken": getCSRFToken()
+                    },
+                    body: JSON.stringify(requestPayload)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("✅ Response from Server:", data);
+
+                    if (data.error) {
+                        aiSuggestions.innerHTML = `<p class="text-danger">🚨 ${data.error}</p>`;
+                        return;
+                    }
+
+                    aiSuggestions.innerHTML = "";
+                    data.suggestions.forEach(suggestion => {
+                        const suggestionBlock = document.createElement("div");
+                        suggestionBlock.classList.add("suggestion-block");
+
+                        suggestionBlock.innerHTML = `
+                            <h5>📄 File: ${suggestion.file}</h5>
+                            <pre class="code-section">${suggestion.feedback}</pre>
+                        `;
+
+                        aiSuggestions.appendChild(suggestionBlock);
+                    });
+                })
+                .catch(error => {
+                    console.error("❌ Error:", error);
+                    aiSuggestions.innerHTML = `<p class="text-danger">❌ Something went wrong. Please try again.</p>`;
+                });
+
+            });
+        });
+    </script>
+
+</body>
+</html>
+{% endblock %}

@@ -54,7 +54,7 @@ ROOT_URLCONF = 'code_review.urls'
 
 
 # settings.py
-
+LOGIN_URL = "/login/"
 LOGIN_REDIRECT_URL = "dashboard"  # Redirect after login
 LOGOUT_REDIRECT_URL = "login"  # Redirect after logout
 

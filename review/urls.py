@@ -1,15 +1,12 @@
 from django.urls import path
-from .views import home, live_code_review
+from django.contrib.auth import views as auth_views
+from . import views
 
 urlpatterns = [
-    path("", home, name="home"),  # Home page where users submit code
-    path("live_review/", live_code_review, name="live_code_review"),  # API endpoint
-    # path('login/', auth_views.LoginView.as_view(template_name='auth/login.html'), name='login'),
-    # path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    # path('register/', views.register, name='register'),
-    # path('profile/', views.profile, name='profile'),
+    path("", views.register, name="register"),  # Default page: Register
+    path("login/", views.user_login, name="login"),
+    path("logout/", views.user_logout, name="logout"),
+    path("dashboard/", views.dashboard, name="dashboard"),  # Protected Dashboard
+    path("profile/", views.profile, name="profile"),  # Protected Profile
+    path("live_review/", views.live_code_review, name="live_code_review"),  # API endpoint
 ]
-
-
-# def home(request):
-#     return render(request, "review/code_submit.html") 
