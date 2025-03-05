@@ -53,8 +53,51 @@ def dashboard(request):
 
 # Profile View (Protected)
 @login_required(login_url="login")
+
 def profile(request):
-    return render(request, 'review/profile.html')
+    print(request.user)  # Add this line
+    reviews = CodeReview.objects.filter(user=request.user)
+    print(reviews)  # Check if this prints in the console
+    return render(request, "review/profile.html", {"reviews": reviews})
+
+
+
+@login_required(login_url="login")
+def submit_review(request):
+    if request.method == "POST":
+        user = request.user
+        language = request.POST.get("language")
+        files = request.FILES.getlist("files")
+        pasted_code = request.POST.get("pasted_code", "")
+
+        print("Submitting review for user:", user)  # Debugging
+
+        reviews = []
+        if files:
+            for file in files:
+                file_name = file.name
+                code_content = file.read().decode("utf-8")
+                review_feedback = f"AI Review for {file_name}: Your code looks great! 🚀"
+
+                review = CodeReview.objects.create(
+                    user=user, file_name=file_name, code_content=code_content, review_feedback=review_feedback
+                )
+                review.save()
+                reviews.append(review)
+
+        elif pasted_code:
+            file_name = "pasted_code.py"
+            review_feedback = "AI Review: Your code looks good!"
+
+            review = CodeReview.objects.create(
+                user=user, file_name=file_name, code_content=pasted_code, review_feedback=review_feedback
+            )
+            review.save()
+            reviews.append(review)
+
+        print("Saved reviews:", reviews)  # Debugging
+        return render(request, "review_result.html", {"reviews": reviews})
+
 
 # AI-Based Code Review Function
 def get_live_ai_suggestions(files, pasted_code, language):

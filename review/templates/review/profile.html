@@ -4,44 +4,17 @@
 
 {% block content %}
 <div class="container">
-    <h2 class="text-center mb-4">Your Code Reviews</h2>
-
-    {% if code_reviews %}
-        <div class="table-responsive">
-            <table class="table table-striped table-hover">
-                <thead class="table-dark">
-                    <tr>
-                        <th>#</th>
-                        <th>Title</th>
-                        <th>Status</th>
-                        <th>Submitted On</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for review in code_reviews %}
-                        <tr>
-                            <td>{{ forloop.counter }}</td>
-                            <td>{{ review.title }}</td>
-                            <td>
-                                {% if review.is_approved %}
-                                    <span class="badge bg-success">Approved</span>
-                                {% else %}
-                                    <span class="badge bg-warning">Pending</span>
-                                {% endif %}
-                            </td>
-                            <td>{{ review.created_at|date:"F d, Y H:i" }}</td>
-                            <td>
-                                <a href="{% url 'review_detail' review.id %}" class="btn btn-info btn-sm">View</a>
-                            </td>
-                        </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    {% else %}
-        <div class="alert alert-warning text-center">No code reviews found.</div>
-    {% endif %}
+    <h2>My Previous Code Reviews</h2>
+    <p>Logged in as: {{ request.user }}</p>
+    {% if reviews %}
+    <ul>
+        {% for review in reviews %}
+            <li>{{ review.file_name }} - {{ review.review_feedback }}</li>
+        {% endfor %}
+    </ul>
+{% else %}
+    <p>No reviews found.</p>
+{% endif %}
 
     <div class="text-center mt-4">
         <a href="{% url 'dashboard' %}" class="btn btn-primary">Back to Dashboard</a>
